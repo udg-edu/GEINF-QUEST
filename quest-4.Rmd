@@ -1,0 +1,233 @@
+---
+title: "Qüestionari 4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+set.seed(1)
+library(tidyverse)
+library(lubridate)
+library(stringr)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Pregunta 1
+
+A internet trobareu molta informació relacionada amb la COVID-19. Al qüestionari 2 vau treballar amb el conjunt de dades que estava disponible a la web d'Our World in Data. En aquest qüestionari afegireu informació sobre les accions que s'estan duent a terme diferents governs. Utilitzareu la taula __Coronavirus Government Response Tracker__ que manté la Universitat d'Oxford, a través del repositori [https://github.com/OxCGRT](https://github.com/OxCGRT).
+
+En aquest qüestionari treballareu amb dues bases de dades:
+
+- __Coronavirus Government Response Tracker__. Registren moltes de les accions que duen a terme els governs per controlar la pandèmia. Per conèixer les variables disponibles, podeu accedir al [llibre de variables](https://github.com/OxCGRT/covid-policy-tracker/blob/master/documentation/codebook.md). Haureu de treballar amb la versió disponible el dia 14 de novembre: [OxCGRT_latest.csv](https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/f904bec14f697b333417a6063e54246b72407112/data/OxCGRT_latest.csv).
+- __Coronavirus Source Data__. Registren informació dels nous casos, així com informació dels diferents països. Podeu accedir al seu llibre de variables dins l'arxiu csv disponible a [aquí](https://github.com/owid/covid-19-data/blob/master/public/data/owid-covid-codebook.csv). Treballareu amb la versió disponible el dia 14 de novembre: [owid-covid-data.csv](https://raw.githubusercontent.com/owid/covid-19-data/9dcb42679baf0a2a850f0bef9531fc4bb1073553/public/data/owid-covid-data.csv).
+
+Després de carregar les dues taules:
+
+```{r, include=FALSE}
+doxcgrt = read_csv("quest-4-OxCGRT_latest.csv", guess_max = 50000)
+dowid = read_csv("quest-4-owid-covid-data.csv", guess_max = 50000)
+```
+
+```{r, eval=FALSE}
+dowid = read_csv("owid-covid-data.csv", guess_max = 50000)
+doxcgrt = read_csv("OxCGRT_latest.csv", guess_max = 50000)
+```
+
+Construïu una taula `data` combinant les dues taules. Seguireu els següents passos:
+
+Amb la taula `dowid`:
+
+1. Filtrareu els nous casos i morts observats a partir de la setmana 15 de l'any 2020.
+1. Setmanalment, resumireu el total de nous casos i morts per cada 10.000 habitants.
+
+Amb la taula `doxcgrt`:
+
+1. Assumint que les accions tenen efecte al cap de dues setmanes, filtrareu les accions de govern amb efectes a partir de la setmana 15 de l'any 2020.
+1. Resumireu les accions preses observant quines mesures existeixen el primer dia de la setmana.
+1. Modificareu el nom de les columnes d'accions al codi de l'acció.
+
+Finalment combinareu les dues taules setmanalment, mantenint les setmanes on tingueu tota la informació registrada.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+
+dowid_s = dowid %>%
+  mutate(
+    week = isoweek(date)
+  ) %>%
+  filter(15 <= week, year(date) == 2020) %>%
+  group_by(iso_code, country = location, continent, week) %>%
+  summarise(.groups = 'drop',
+    monday = first(date),
+    cases = 10000 * sum(new_cases, na.rm = TRUE) / first(population),
+    deaths = 10000 * sum(new_deaths, na.rm = TRUE) / first(population)
+  ) 
+
+doxcgrt_s = doxcgrt %>%
+  filter(is.na(RegionName)) %>%
+  mutate(
+    date = ymd(Date),
+    week = isoweek(date),
+    week_effect = week + 2
+  ) %>%
+  filter(15 <= week_effect, year(date) == 2020) %>%
+  group_by(iso_code = CountryCode, week_effect) %>%
+  select(group_vars(.), matches('^(C|E|H)._'), -ends_with('_Flag')) %>%
+  slice(1) %>%
+  ungroup() %>%
+  rename_with(~tolower(str_sub(., 1, 2)), matches('^(C|E|H)._'))
+
+data = inner_join(dowid_s, doxcgrt_s, by = c('iso_code', 'week' = 'week_effect')) %>%
+  filter(complete.cases(.))
+```
+
+Arribats a aquest punt, tindreu una taula amb la següent estructura:
+
+```{r}
+data
+```
+
+Utilitzant sempre el __test amb més potència estadística__ i __sense aplicar correccions per continuïtat__, respon les següents preguntes:
+
+
+```{r, include=FALSE}
+info_continent = list(
+  'Europe' = list(
+    continent = "Europa",
+    general = "Europeus"
+  ),
+  'Africa' = list(
+    continent = "Àfrica",
+    general = "Africans"
+  ),
+  'Asia' = list(
+    continent = "Àsia",
+    general = "Asiàtics"
+  )
+) %>% sample()
+info_measure = list(
+  'c1' = list(
+    generic = 'les accions a les escoles i universitats (c1)',
+    accio = 'Es demana tancar les escoles a tots els nivells (_require closing all levels_)',
+    value = 3
+  ),
+  'c2' = list(
+    generic = 'les accions associades als locals (c2)',
+    accio = 'Es demana tancar alguns serveis (_require closing, or work from home, for some sectors or categories of workers_)',
+    value = 2
+  ),
+  'c3' = list(
+    generic = 'les accions associades a acitivitats públiques (c3)',
+    accio = 'Es recomana cancel·lar els esdeveniments públics (_recommend cancelling_)',
+    value = 1
+  )
+) %>% sample()
+ICONT = names(info_continent)[1]
+IMEAS = names(info_measure)[1]
+
+d1 = data %>%
+  filter(continent == ICONT) %>%
+  select(x1 = week, x2 = {{IMEAS}})
+
+get_weeks = function(.d1){
+  repeat{
+    IWEEKS = sort( sample(unique(d1$x1), 3) )
+    tab1 = d1 %>%
+      filter(x1 %in% IWEEKS) %>%
+      mutate(x2 = as.integer(x2 == info_measure[[1]]$value)) %>%
+      with(table(x1,x2))
+    if(min(tab1) >= 3 & all(apply(tab1, 2, mean) != tab1[1,])){
+      test_ = prop.test(tab1, correct = FALSE)
+      return(list(iweeks = IWEEKS, tab = tab1, statistic = test_$statistic))
+    }
+  }
+}
+
+r1 = get_weeks(d1)
+q1 = sprintf("Treballant amb els països d'%s, compara a les setmanes %d, %d i %d la proporció de països on %s. Dona l'estadístic de contrast del test que has realitzat.", 
+             info_continent[[1]]$continent, r1$iweeks[1], r1$iweeks[2], r1$iweeks[3], 
+             str_to_lower(info_measure[[1]]$accio))
+
+repeat{
+  info_countries = list(
+    'Andorra' = list(ca = 'Andorra'), 
+    'Spain' = list(ca = 'Espanya'), 
+    'France' = list(ca = 'França'),
+    'Portugal' = list(ca = 'Portugal'),
+    'Italy' = list(ca = 'Itàlia'), 
+    'Germany' = list(ca = 'Alemania'), 
+    'Greece' = list(ca = 'Grècia'), 
+    'Belgium' = list(ca = 'Bèlgica')) %>%
+    sample()
+  
+  COUNTRIES = names(info_countries)[1:2]
+  FROM = sample(25:35, 1)
+  d2 = data %>%
+    filter(country %in% COUNTRIES, FROM <= week, week <= FROM + 9) %>%
+    select(country, week, deaths) %>%
+    pivot_wider(week, names_from = country, values_from = deaths, names_repair = ~c('week', 'x1', 'x2'))
+  test_ = t.test(d2$x1, d2$x2, paired = TRUE)
+  resp2 = test_$p.value
+  if(resp2 > 0.01) break
+}
+
+q2 = sprintf("Volem comparar el nombre de morts entre %s i %s al llarg del període que va de la setmana %d a la %d, ambdues setmanes incloses. Dóna el valor p del contrast que has plantejat.",
+             info_countries[[1]]$ca, info_countries[[2]]$ca, FROM , FROM + 9)
+
+
+d3 = data %>%
+  filter(continent == ICONT)
+
+repeat{
+  WEEKS = sort(sample(unique(d3$week), 2))
+  
+  d3_ = d3 %>%
+    filter(week %in% WEEKS) %>%
+    select(week, country, cases) %>%
+    pivot_wider(names_from = week, values_from = cases, names_repair = ~c('country', 'x1', 'x2'))
+  test_ = t.test(d3_$x1, d3_$x2, paired = TRUE)
+  resp3 = abs(test_$statistic)
+  if(resp3 > 0.01) break
+}
+q3 = sprintf("Volem comparar el nombre de nous casos que han sorgit a països d'%s a la setmana %d amb els de la setmana %d. Dóna l'estadístic de contrast que has plantejat (__dóna'l amb valor absolut, sense posar cap signe__).",
+             info_continent[[1]]$continent, WEEKS[1] , WEEKS[2])
+
+
+ICONT1 = names(info_continent)[2]
+ICONT2 = names(info_continent)[3]
+
+repeat{
+  WEEK = sample(15:30, 1)
+  d4 = data %>%
+    filter(continent %in% c(ICONT1, ICONT2), week == WEEK) %>%
+    select(week, country, continent, deaths)
+  VAR.EQUAL = !bartlett.test(deaths~continent, data=d4)$p.value < 0.05
+  
+  test_ = t.test(deaths~continent, data=d4, var.equal = VAR.EQUAL)
+  resp4 = test_$p.value
+  if(resp4 > 0.01) break
+}
+
+q4 = sprintf("Volem comparar el nombre de morts per països a la setmana %d entre %s i %s. Dona el valor p associat al contrast.", WEEK, info_continent[[2]]$continent, info_continent[[3]]$continent)
+
+
+repeat{
+  WEEK  = sample(15:30, 1)
+  test_ = filter(data, week == WEEK) %>%
+    with(chisq.test(table(continent == ICONT, c2)))
+  resp5 = test_$p.value
+  if(resp5 > 0.01) break
+}
+
+q5 = sprintf("Compara la proporció de països %s entre les diferents possibilitats de %s a la setmana %d. Dona el valor p associat al contrast.", 
+             info_continent[[1]]$general,
+             info_measure[[1]]$generic,
+             WEEK)
+```
+
+a. `r q1`
+a. `r q2`
+a. `r q3`
+a. `r q4`
+a. `r q5`
+

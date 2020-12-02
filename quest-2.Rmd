@@ -1,0 +1,195 @@
+---
+title: "Qüestionari 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+library(lubridate)
+```
+
+# Pregunta 1
+
+```{r p1, include=FALSE}
+set.seed(1)
+
+DEST = c('ORD', 'ATL', 'LAX', 'BOS', 'MCO', 'CLT', 'SFO', 'FLL', 'MIA', 'DCA', 
+         'DTW', 'DFW', 'RDU', 'TPA', 'DEN', 'IAH', 'MSP', 'PBI', 'BNA', 'LAS')
+ORIGIN = list(
+  'EWR' = 'aeroport Internacional de Newark Liberty',
+  'JFK' = 'aeroport Internacional John F. Kennedy',
+  'LGA' = 'aeroport de LaGuardia'
+)
+ORIGIN1 = sample(names(ORIGIN), 1)
+
+###
+DEST2 = sample(DEST, 2)
+D = filter(flights, origin == ORIGIN1, dest %in% DEST2[1])
+while(nrow(D) < 5){
+  DEST2 = sample(DEST, 2)
+  D = filter(flights, origin == ORIGIN1, dest %in% DEST2[1])
+}
+
+MEAN = sample(c(F,T), 1)
+```
+
+El paquet `nycflights13` conté informació dels vols que van sortir de Nova York l'any 2013. Un cop instal·lat el paquet, la instrucció `data(package = 'nycflights13')` permet veure les taules que conté. Si carreguem el paquet amb la funció `library()`, podrem utilitzar les taules. 
+
+A la taula `flights` disposem d'informació dels vols que van sortir de Nova York. Podem obtenir més informació d'aquesta taula amb l'ajuda d'R (`help(flights)`).
+
+Per a totes les preguntes del qüestionari, ompliu els espais amb la resposta adequada.
+
+* Considerant els vols que surten de Nova York amb destinació als aeroports amb codi "`r DEST2[1]`" o "`r DEST2[2]`", quina proporció (__tant per u__) de vols provenen de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)`? (per respondre aquestes preguntes utilitzeu les columnes `origin` i `dest`)
+* Quina és la `r if_else(MEAN, "mitjana", "mediana")` del retard, en minuts, dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`"? (utilitzeu la variable `dep_delay`)
+* El retard dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`" tenen biaix. Cap a on és aquest biaix? (possibles respostes: `dreta` o `esquerra`)
+* Quina és la correlació entre el retard en la sortida (`dep_delay`) i el retard en l'arribada (`arr_delay`) dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`"?
+
+# Pregunta 2
+
+```{r p2, include=FALSE}
+pokemon = read_csv("quest-2-pokemon.csv")
+pokemon.n = count(pokemon, TYPE1, TYPE2) %>%
+  na.omit() %>%
+  filter(n > 5) %>%
+  sample_n(n())
+
+R1 = nrow(pokemon)
+pokemon.i = slice(pokemon.n, 1)
+R2 = pull(pokemon.i)
+
+pokemon.g = count(pokemon, GENERATION, TYPE1) %>%
+  filter(n > 1) %>%
+  left_join(pokemon, by = c("GENERATION", "TYPE1")) %>%
+  group_by(GENERATION, TYPE1) %>%
+  summarise(.groups = 'drop',
+    ATK = sd(ATK),
+    DEF = sd(DEF)
+  )
+TYPE1_ = sample(unique(pull(pokemon.g, TYPE1)))
+V1 = list(
+  'ATK' = 'd\'atac físic',
+  'DEF' = 'de defensa física'
+) %>% sample()
+
+pokemon.g
+
+pokemon.nt1 = count(pokemon, TYPE1) %>%
+  filter(n > 10) %>%
+  sample_n(n())
+
+pokemon$x = pokemon[[names(V1)[1]]]
+R3 = pokemon %>%
+  filter(TYPE1 == TYPE1_[1]) %>%
+  group_by(GENERATION) %>%
+  summarise(.groups = 'drop',
+            cv = sd(x) / mean(x)
+  ) %>%
+  summarise(
+    GEN = GENERATION[which.max(cv)]
+  ) %>% pull(GEN)
+V2 = slice(pokemon.nt1, 1:3) %>% pull(TYPE1)
+```
+
+Descarregueu el fitxer [pokemon.csv](https://gist.githubusercontent.com/simsketch/1a029a8d7fca1e4c142cbfd043a68f19/raw/84d6850cfb36fb8b1f3eaee7468a605fe85ed30e/pokemon.csv). Aquest arxiu de text amb format csv conté una llista de Pokemon amb les seves habilitats i característiques. Podeu trobar més informació sobre les variables d'aquest conjunt de dades a l'adreça  [https://www.kaggle.com/takamasakato/pokemon-all-status-data](https://www.kaggle.com/takamasakato/pokemon-all-status-data).
+
+Per a totes les preguntes del qüestionari, ompliu els espais amb la resposta adequada.
+
+* Quants Pokemon existeixen de tipus 1 "`r pokemon.i$TYPE1`" i tipus 2 "`r pokemon.i$TYPE2`"?
+* Treballant amb els Pokemon de tipus 1 "`r TYPE1_[1]`". Per a quin grup definit pels valors de la variable `GENERATION` s'obté que la variable  `r V1[[1]]` (``r I(names(V1)[1])``) té un coeficient de variació més elevat?
+* De les següents possibilitats pel tipus 1 de Pokemon: ``r paste(sample(V2), collapse=', ')``. Quin s'ha utilitzat per fer el següent gràfic de caixa que descriu la variable `r V1[[1]]` (``r I(names(V1)[1])``)?
+
+```{r, echo=FALSE}
+x = filter(pokemon, TYPE1 == V2[1])[[names(V1)[1]]]
+boxplot(x, horizontal = TRUE, xlab = names(V1)[1])
+```
+
+# Pregunta 3
+
+```{r p3, include=FALSE}
+covid_data = read_csv("quest-2-owid-covid-data.csv", 
+                      col_types = cols(
+                        .default = col_double(),
+                        iso_code = col_character(),
+                        continent = col_character(),
+                        location = col_character(),
+                        date = col_date(format = ""),
+                        tests_units = col_character()))
+data = covid_data %>%
+  filter(year(date) == 2020) %>%
+  mutate(month = month(date))
+R1 = nrow(data)
+
+dates = ymd(c("2020-02-01", "2020-04-01", "2020-03-01", "2020-10-01"))
+month(dates)
+countries_valid = data %>%
+  filter(continent == 'Europe', complete.cases(new_deaths, new_cases, new_tests)) %>% 
+  pull(location) %>%
+  unique()
+countries = list(
+  # 'Spain' = 'Espanya',
+  'Italy' = 'Italia',
+  # 'Andorra' = 'Andorra',
+  'France' = 'França',
+  # 'Germany' = 'Alemanya',
+  'Portugal' = 'Portugal',
+  # 'Albania' = 'Albània',
+  'Austria' = 'Austria',
+  'Belgium' = 'Bèlgica',
+  'Greece' = 'Grècia'
+) %>% sample()
+
+country_ = countries[1]
+variables = list(
+  'new_deaths' = 'morts per COVID-19',
+  'new_cases' = 'casos de COVID-19',
+  'new_tests' = 'testos de COVID-19'
+) %>% sample()
+variable_ = variables[1]
+
+data$var = data[[names(variable_)]]
+R2 = data %>%
+  filter(location == names(country_)) %>%
+  group_by(month) %>%
+  summarise(.groups = 'drop',
+    total_var = sum(var, na.rm=TRUE)   # <- valors perduts cal possar-los
+  ) %>%
+  summarise(
+    month[which.max(total_var)]
+  ) %>% pull()
+
+country2_ = countries[2]
+D = filter(data, location == names(country2_))
+```
+
+A [https://github.com/owid/covid-19-data/tree/master/public/data](https://github.com/owid/covid-19-data/tree/master/public/data) trobareu informació sobre registres de COVID 19 a diferents parts del món. Com que cada dia actualitzen la informació, nosaltres treballarem amb la versió del dia 14 d'octubre, disponible en el següent enllaç [owid-covid-data.csv](https://raw.githubusercontent.com/owid/covid-19-data/46848f81eee15ba0d64c47e3f10eb8fbaf40bb27/public/data/owid-covid-data.csv).  Trobareu informació sobre el conjunt descarregat a [https://ourworldindata.org/coronavirus-source-data](https://ourworldindata.org/coronavirus-source-data). 
+
+Per carregar l'arxiu `owid-covid-data.csv` amb format correcte, quan crideu a la funció `read_csv()`, __passeu el següent objecte com a paràmetre `col_types`__:
+
+```{r}
+format_columnes = cols(
+  .default = col_double(),
+  iso_code = col_character(),
+  continent = col_character(),
+  location = col_character(),
+  date = col_date(format = ""),
+  tests_units = col_character())
+```
+
+La crida quedarà de la següent manera: `read_csv(<adreça de l'arxiu>, col_type = format_columnes)`.
+
+Per aquest qüestionari necessitareu __crear una nova columna anomenada `month`__ (ajuda't de la funció `mutate()` per crear la nova variable). Aquesta nova variable la podreu crear amb la funció `month()` del paquet `lubridate`. Aquesta llibreria està inclosa a `tidverse`, però no es carrega per defecte, caldrà carregar-la. Donada una data (per exemple la columna `date`), la funció `month()` retorna el mes de la data.
+
+Finalment, caldrà que __filtreu la taula amb les observacions d'aquest any 2020__ (de manera similar a la funció `month()`, podreu utilitzar la funció `year()` per extreure l'any d'una data).
+
+Per a totes les preguntes del qüestionari, ompliu els espais amb la resposta adequada.
+
+
+* Quantes observacions té la taula importada després de filtrar les observacions de l'any 2020?
+* Quin és el número de mes amb més `r variable_[[1]]` (utilitza la variable ``r names(variable_)`) a `r country_[[1]]` ("`r names(country_)`")?
+* Estem interessats a estudiar la relació entre els nous testos i els nous casos. A quin dels següents païssos pertany el següent gràfic: `r paste(sample(names(countries[1:5])), collapse=', ')` <br>
+
+```{r, echo=FALSE}
+with(D, plot(new_tests, new_cases))
+```

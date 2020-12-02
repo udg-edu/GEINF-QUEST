@@ -1,0 +1,143 @@
+---
+title: "Qüestionari 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(flextable)
+set.seed(1)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Pregunta 1
+
+```{r p1, include=FALSE}
+size = sample(seq(1000,5000, 500), 1)
+Prob_I = sample(c(0.01, 0.05, 0.1, 0.25), 1)
+n_lim  = pretty(ceiling(size * Prob_I), 2)
+lim = sample(x = rep(n_lim, 2), size = 1)
+direction = sample(c('més', 'menys'), 1)
+
+l_diaria = sample(c(5,10,20), 1)
+ 
+RES1 = ifelse(direction == "més", 1 - pbinom(lim, size, Prob_I), pbinom(lim-1, size, Prob_I))
+RES2 = qpois(0.5, 10*l_diaria/10000 * size)
+Prob_P_I = 0.8
+Prob_P_S = 1 - 0.85
+Prob_I_P = Prob_I * Prob_P_I / (Prob_I * Prob_P_I + (1-Prob_I) * Prob_P_S)
+RES3 = 1 - pbinom(5, 10, Prob_I_P)
+```
+
+Un cert virus està afectant una localitat A de `r size` habitants. S'estima que la prevalença a la població, gent afectada pel virus, és d'un `r Prob_I * 100`%. 
+
+a. Quina és la probabilitat que `r direction` de `r lim` habitants de la localitat tingui el virus?
+a. La taxa d'infecció del virus s'assumeix constant amb `r l_diaria` nous casos diaris per una població de 10000 habitants. Quin és el nombre medià de nous casos esperats després de 10 dies a la localitat A?
+a. Un test detecta el virus a una persona que realment té el virus amb una probabilitat del 80%. Si la persona no té el virus, el test diu que no té el virus el 85% dels cops. A la població A, s'agafen 10 persones que han obtingut un resultat positiu, a aquests se'ls faran proves més exhaustives per confirmar la presència del virus. Quina és la probabilitat que més de la meitat d'aquests pacients tingui realment el virus?
+
+# Pregunta 2
+
+```{r p2, include=FALSE}
+X1 = round(rnorm(10, 10, 1),1)
+X2 = round(rexp(10, 2),1)
+
+if(sample(0:1, 1) == 0){
+  X =  X1
+}else{
+  X = X2
+}
+rkX = range(pretty(X))
+DX = list(
+  'norm' = qnorm(ppoints(10), mean(X), sd(X)),
+  'unif' = qunif(ppoints(10), rkX[1], rkX[2]),
+  't2' = mean(X)+qt(ppoints(10), 2)*sd(X),
+  '2norm' = qnorm(ppoints(10), mean(X), 2*sd(X))
+) %>% sample()
+```
+
+Sigui X la següent mostra: 
+
+```
+`r paste(X, collapse=', ')`
+```
+
+Utilitzant un gràfic Q-Q, volem veure si la mostra s'ajusta a una distribució uniforme amb paràmetres $a=`r rkX[1]`$ i $b=`r rkX[2]`$. Quin dels següents gràfics obtindrem?
+
+
+```{r, echo=FALSE, out.width="50%", fig.show='hold'}
+qqplot(DX[[1]], X, xlab = "Quantil teòric", ylab = "Quantil observat", main = 'Gràfic A')
+abline(0,1,col='red')
+qqplot(DX[[2]], X, xlab = "Quantil teòric", ylab = "Quantil observat", main = 'Gràfic B')
+abline(0,1,col='red')
+qqplot(DX[[3]], X, xlab = "Quantil teòric", ylab = "Quantil observat", main = 'Gràfic C')
+abline(0,1,col='red')
+qqplot(DX[[4]], X, xlab = "Quantil teòric", ylab = "Quantil observat", main = 'Gràfic D')
+abline(0,1,col='red')
+```
+
+
+# Pregunta 3
+
+```{r p3, include=FALSE}
+ndaus = sample(3:5, 1)
+tab = tibble(
+  `# de sisos` = rbinom(100, ndaus, 1/6)) %>%
+  count(`# de sisos`)
+tab = bind_rows(tab, tibble(`# de sisos` = 0:ndaus, n = 0)) %>%
+  group_by(`# de sisos`) %>% summarise(.groups = 'drop', n = sum(n))
+O = tab$n
+E = 100*dbinom(0:ndaus, ndaus, 1/6)
+chisq = sum( (O-E)^2/E )
+test_1 = chisq.test(tab$n, p = dbinom(0:ndaus, ndaus, 1/6), correct = FALSE)
+sis = sum(tab$n * 0:ndaus)
+test_2 = chisq.test(c(sis, ndaus*100-sis), p = c(1/6, 5/6), correct = FALSE)
+preg01 = list(
+  'statistic' = "Quin és l'estadístic de contrast Khi-quadrat que obtindrà?",
+  'p.value' = "Quin és el valor p que obtindrà?"
+) %>% sample()
+RES01 = test_1[[names(preg01)[1]]]
+RES02 = test_2[[names(preg01)[1]]]
+recomp = c(-1,0,4^(0:(ndaus-2)))
+RES03 = sum(dbinom(0:ndaus, ndaus, 1/6) * recomp)
+```
+
+Un jugador juga a un joc en què ha de llençar `r ndaus` daus seguits. Els seus beneficis estan relacionats amb el nombre de sisos que treu. Després de jugar 100 vegades, ha registrat els següents resultats:
+
+```{r, echo=FALSE}
+flextable(tab)
+```
+
+a. Primerament vol mirar si el dau està trucat, per això realitzarà un contrast de bondat d'ajust per veure si la distribució del nombre de sisos observats en les 100 repeticions és com s'esperaria. `r preg01[[1]]` (no utilitzis la correcció de continuïtat)
+a. Després de pensar-hi, veu que realment ha llençat el dau `r ndaus*100` vegades. Fes un contrast per veure si el nombre de sisos que ha obtingut en aquests `r ndaus*100` llançaments segueix la distribució que hauria de seguir. `r preg01[[1]]` (no utilitzis la correcció de continuïtat)
+a. Si les recompenses del joc són `r paste(recomp, collapse=', ')` euros per obtenir `r paste(0:ndaus, collapse=', ')` sisos respectivament, quina és la recompensa esperada per cada euro jugat? (si en lloc de recompensa et surt pèrdua, indica-ho amb un valor negatiu)
+
+# Pregunta 4
+
+```{r p4, include=FALSE}
+L = replicate(10,
+              round(runif(20, 0, 10), 0), simplify = FALSE)
+names(L) = LETTERS[1:10]
+tab = as_tibble(L)
+
+tab_mean = pivot_longer(tab, everything()) %>%
+  group_by(name) %>%
+  summarise(.groups = 'drop', m = mean(value))
+RES01 = shapiro.test(tab_mean$m)$p.value
+dades = pivot_longer(tab, everything(), names_to = 'mostra', values_to = 'valor') %>% arrange(mostra)
+```
+
+El teorema del límit central diu que si calculem la mitjana de mostres provinents d'una mateixa variable aleatòria, aquesta mitjana es comportarà com si provingués d'una distribució normal. A continuació, tens 10 mostres de llargada 20 obtingudes d'una mateixa variable aleatòria. Realitza el contrast de Shapiro-Wilk per veure si es compleix el teorema del límit central. Quin és el p-valor obtingut?
+
+```{r, echo=FALSE, results = 'asis'}
+flextable(tab)
+```
+
+Pots utilitzar el següent codi per importar els valors en una taula:
+
+```
+```{r, echo=FALSE, results='asis'}
+cat(sprintf("dades = %s", paste(capture.output(dput(dades)), collapse='\n')))
+```
+```
+
+
