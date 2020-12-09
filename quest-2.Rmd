@@ -1,6 +1,8 @@
 ---
 title: "Qüestionari 2"
-output: html_document
+output: 
+  html_document: 
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -41,10 +43,64 @@ A la taula `flights` disposem d'informació dels vols que van sortir de Nova Yor
 
 Per a totes les preguntes del qüestionari, ompliu els espais amb la resposta adequada.
 
-* Considerant els vols que surten de Nova York amb destinació als aeroports amb codi "`r DEST2[1]`" o "`r DEST2[2]`", quina proporció (__tant per u__) de vols provenen de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)`? (per respondre aquestes preguntes utilitzeu les columnes `origin` i `dest`)
-* Quina és la `r if_else(MEAN, "mitjana", "mediana")` del retard, en minuts, dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`"? (utilitzeu la variable `dep_delay`)
-* El retard dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`" tenen biaix. Cap a on és aquest biaix? (possibles respostes: `dreta` o `esquerra`)
-* Quina és la correlació entre el retard en la sortida (`dep_delay`) i el retard en l'arribada (`arr_delay`) dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`"?
+a. Considerant els vols que surten de Nova York amb destinació als aeroports amb codi "`r DEST2[1]`" o "`r DEST2[2]`", quina proporció (__tant per u__) de vols provenen de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)`? (per respondre aquestes preguntes utilitzeu les columnes `origin` i `dest`)
+b. Quina és la `r if_else(MEAN, "mitjana", "mediana")` del retard, en minuts, dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`"? (utilitzeu la variable `dep_delay`)
+c. El retard dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`" tenen biaix. Cap a on és aquest biaix? (possibles respostes: `dreta` o `esquerra`)
+d. Quina és la correlació entre el retard en la sortida (`dep_delay`) i el retard en l'arribada (`arr_delay`) dels vols que surten de `r sprintf("l'%s (%s)", ORIGIN[ORIGIN1], ORIGIN1)` amb destinació a l'aeroport amb codi "`r DEST2[1]`"?
+
+## Resposta
+
+Primerament carregarem el paquet `nycflights13` i els altres paquets necessaris:
+
+```{r, message=FALSE}
+library(nycflights13)
+library(tidyverse)
+```
+
+a. Per trobar la proporció indicada, filtrarem els vols amb destinació `DEST`, i mirarem quina proporció de vols provenen de l'aeroport `ORIG`:
+
+```{r}
+ORIG = "EWR"
+DEST = c("BOS", "SFO")
+
+flights %>%
+  filter(dest %in% DEST) %>%
+  summarise(
+    p = mean(origin == ORIG)
+  )
+```
+
+b. Depenen de si se us demana la mitjana o la mediana, caldrà canviar la definició de la funció `f_estad`. En aquest cas hem de filtrar els vols demanats, vols que surten de `ORIG` i que tenen destinació el primer element del vector `DEST`.
+
+```{r}
+f_estad = median
+flights %>%
+  filter(origin == ORIG, dest == DEST[1]) %>%
+  summarise(
+    value = f_estad(dep_delay, na.rm=TRUE)
+  )
+```
+
+c. En aquesta cas, per la natura de la variable, és fàcil veure que el retard té un fort biaix a la __dreta__. Podem veure-ho veient que la mitjana és bastant superior a la mediana.
+
+```{r}
+flights %>%
+  filter(origin == ORIG, dest == DEST[1]) %>%
+  summarise(
+    mean_ = mean(dep_delay, na.rm=TRUE),
+    median_ = median(dep_delay, na.rm=TRUE)
+  )
+```
+
+d. Per calcular la correlació, filtrarem els vols demanats i calcularem la correlació. En aquest cas, és necessari eliminar el valors perduts. Per fer-ho, cal indicar-ho amb el paràmetre `use` de la funció `cor()`.
+
+```{r}
+flights %>%
+  filter(origin == ORIG, dest == DEST[1]) %>%
+  summarise(
+    value = cor(dep_delay, arr_delay, use = "complete.obs")
+  )
+```
 
 # Pregunta 2
 
@@ -96,14 +152,55 @@ Descarregueu el fitxer [pokemon.csv](https://gist.githubusercontent.com/simsketc
 
 Per a totes les preguntes del qüestionari, ompliu els espais amb la resposta adequada.
 
-* Quants Pokemon existeixen de tipus 1 "`r pokemon.i$TYPE1`" i tipus 2 "`r pokemon.i$TYPE2`"?
-* Treballant amb els Pokemon de tipus 1 "`r TYPE1_[1]`". Per a quin grup definit pels valors de la variable `GENERATION` s'obté que la variable  `r V1[[1]]` (``r I(names(V1)[1])``) té un coeficient de variació més elevat?
-* De les següents possibilitats pel tipus 1 de Pokemon: ``r paste(sample(V2), collapse=', ')``. Quin s'ha utilitzat per fer el següent gràfic de caixa que descriu la variable `r V1[[1]]` (``r I(names(V1)[1])``)?
+a. Quants Pokemon existeixen de tipus 1 "`r pokemon.i$TYPE1`" i tipus 2 "`r pokemon.i$TYPE2`"?
+b. Treballant amb els Pokemon de tipus 1 "`r TYPE1_[1]`". Per a quin grup definit pels valors de la variable `GENERATION` s'obté que la variable  `r V1[[1]]` (``r I(names(V1)[1])``) té un coeficient de variació més elevat?
+c. De les següents possibilitats pel tipus 1 de Pokemon: ``r paste(sample(V2), collapse=', ')``. Quin s'ha utilitzat per fer el següent gràfic de caixa que descriu la variable `r V1[[1]]` (``r I(names(V1)[1])``)?
 
 ```{r, echo=FALSE}
 x = filter(pokemon, TYPE1 == V2[1])[[names(V1)[1]]]
 boxplot(x, horizontal = TRUE, xlab = names(V1)[1])
 ```
+
+## Resposta
+
+Primerament carregarem el conjunt Pokemon:
+
+```{r, message = FALSE}
+pokemon = read_csv("quest-2-pokemon.csv")
+```
+
+a. Filtrem els tipus de Pokemon demanats i comptem el nombre de files de la taula obtinguda.
+
+```{r}
+TYPE1_ = "Bug"
+TYPE2_ = "Grass"
+pokemon %>%
+  filter(TYPE1 == TYPE1_, TYPE2 == TYPE2_) %>%
+  nrow()
+```
+
+b. Primerament filtrarem per la condició `TYPE == TYPE_`. Després, per cada valor possible de la variable `GENERATION`, calcularem el coeficient de variació per la variable `DEF` (caldrà modificar-ho per `ATK` en cas que es demani atac). Ordenarem per detectar el que té la major variació.
+
+```{r}
+TYPE_ = "Poison"
+pokemon %>%
+  filter(TYPE1 == TYPE_) %>%
+  group_by(GENERATION) %>%
+  summarise(.groups = 'drop',
+            n = n(),
+            cv = sd(DEF, na.rm=TRUE) / mean(DEF, na.rm=TRUE)    # Cal possar DEF o ATK
+  ) %>%
+  arrange(desc(cv))
+```
+
+c. Comparant els diferents resultats, podem veure que s'ha utilitzat el tipus `Fighting`:
+
+```{r, out.width="33%", fig.show='hold'}
+with(filter(pokemon, TYPE1 == 'Fire'), boxplot(DEF, horizontal = TRUE))
+with(filter(pokemon, TYPE1 == 'Fighting'), boxplot(DEF, horizontal = TRUE))
+with(filter(pokemon, TYPE1 == 'Ground'), boxplot(DEF, horizontal = TRUE))
+```
+
 
 # Pregunta 3
 
