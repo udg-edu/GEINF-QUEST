@@ -1,0 +1,181 @@
+---
+title: "Qüestionari 5"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+set.seed(1)
+library(tidyverse)
+library(lubridate)
+library(stringr)
+knitr::opts_chunk$set(echo = TRUE, collapse=TRUE, comment = "# >", warning = FALSE)
+load('p1_scenarios.RData')
+```
+
+```{r, include=FALSE}
+scenario = final_scenarios %>% sample_n(1)
+```
+
+En aquest qüestionari treballareu amb les mateixes dades que al qüestionari anterior, però amb dades actualitzes. __Penseu tornar a descarregar les dades__):
+
+- __Coronavirus Government Response Tracker__. Registren moltes de les accions que duen a terme els governs per controlar la pandèmia. Per conèixer les variables disponibles, podeu accedir al [llibre de variables](https://github.com/OxCGRT/covid-policy-tracker/blob/master/documentation/codebook.md). Haureu de treballar amb la versió disponible el dia 14 de novembre: [OxCGRT_latest.csv](https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/2a9f84b82f5867f92a50be2f01416a688f97e5a3/data/OxCGRT_latest.csv).
+- __Coronavirus Source Data__. Registren informació dels nous casos, així com informació dels diferents països. Podeu accedir al seu llibre de variables dins l'arxiu csv disponible a [aquí](https://github.com/owid/covid-19-data/blob/master/public/data/owid-covid-codebook.csv). Treballareu amb la versió disponible el dia 14 de novembre: [owid-covid-data.csv](https://raw.githubusercontent.com/owid/covid-19-data/b798de25c1c802790414dd938c4312a95555e43e/public/data/owid-covid-data.csv).
+
+Després de carregar les dues taules:
+
+```{r, include=FALSE}
+dowid = read_csv("quest-5-owid-covid-data.csv", guess_max = 50000)
+doxcgrt = read_csv("quest-5-OxCGRT_latest.csv", guess_max = 50000)
+```
+
+```{r, eval=FALSE}
+dowid = read_csv("owid-covid-data.csv", guess_max = 50000)
+doxcgrt = read_csv("OxCGRT_latest.csv", guess_max = 50000)
+```
+
+Construïu una taula `data` combinant les dues taules a data `r format(scenario$DAY, "%d/%m")`, dins la variable `DAY`:
+
+```{r, echo=FALSE, comment=""}
+cat(sprintf('DAY = ymd("%s")', format(scenario$DAY, "%Y-%m-%d")))
+```
+
+```{r, include=FALSE}
+DAY = scenario$DAY
+```
+
+Seguireu els següents passos:
+
+Amb la taula `dowid` construireu la variable resposta `y`, que mesura si el nombre de casos està augmentant o disminuint, de la següent manera:
+
+1. Calculareu quants nous casos diaris mitjans s'han observat al llarg de la setmana anterior a la data `DAY` (`cases_b7`).
+1. Calculareu quants nous casos diaris mitjans s'han observat al llarg de la setmana següent a la data `DAY` (`cases_f7`).
+1. Finalment, la variable `y` mesurarà el creixement observat calculant el log-quocient entre les dues mesures observades `y = log(cases_f7/cases_b7)`. Aquesta variable serà superior a zero quan augmentin els casos i negativa quan disminueixin.
+
+A la variable `y` en direm la variació relativa de casos.
+
+Amb la taula `doxcgrt` construireu les variables explicatives de la següent manera:
+
+1. Únicament treballareu amb les accions associades a restriccions (les que comencen amb una C), i sense mirar si tenen afecte a tota la població (acabades amb Flag).
+1. Finalment, perquè les variables són categòriques, convertireu les variables a factors.
+
+Finalment, combinareu les dues taules per obtenir una única taula (`data`) que contindrà el vostre conjunt de dades.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+
+Y_b07 = dowid %>%
+  filter(DAY - days(7) < date, date <= DAY) %>%
+  group_by(iso_code, country = location) %>%
+  summarise(.groups = 'drop', cases_b7 = mean(new_cases, na.rm = TRUE)) %>%
+  filter(cases_b7 > 0)
+
+Y_f07 = dowid %>%
+  filter(DAY < date, date <= DAY + days(7)) %>%
+  group_by(iso_code) %>%
+  summarise(.groups = 'drop', cases_f7 = mean(new_cases, na.rm = TRUE)) %>%
+  filter(cases_f7 > 0)
+
+Y = inner_join(Y_b07, Y_f07, by = "iso_code") %>%
+  mutate(y = log(cases_f7/cases_b7))
+
+X = doxcgrt %>%
+  filter(is.na(RegionName)) %>%
+  mutate( date = ymd(Date))  %>%
+  filter(date == DAY) %>%
+  select(iso_code = CountryCode, ends_with("Index"),
+         matches('^C._'), -ends_with('_Flag')) %>%
+  rename_with(~str_sub(., 1, 2), matches('^C._')) %>%
+  mutate_at(vars(matches('^C.$')), factor)
+
+data = inner_join(Y, X, by = 'iso_code') %>%
+  filter(complete.cases(.))
+```
+
+Arribats a aquest punt, tindreu una taula amb la següent estructura:
+
+```{r}
+data
+```
+
+Utilitzant sempre el __test amb més potència estadística__, responeu les següents preguntes:
+
+```{r, include=FALSE}
+if(scenario$anova_homoscedasticity_groups > 0.01){
+  res2 = scenario$anova_homoscedasticity_groups
+  txt2 = "Assumint normalitat de la variació relativa dins dels grups de la pregunta anterior, "
+}else{
+  res2 = scenario$anova_homoscedasticity
+  txt2 = "Assumint que __no__ hi ha normalitat de la variació relativa dins dels grups de la pregunta anterior, "
+}
+
+# res4 = 1 - sum(residuals(scenario$sw_lr_mod[[1]])^2) / (var(scenario$data[[1]]$y) * (scenario$n_rows - 1))
+```
+
+a. Creieu que tenim evidències per dir que la variació relativa de casos depèn de la mesura de contingència `r scenario$measure`? Amb una precisió mínima de 3 decimals, doneu el valor p associat al contrast realitzat.
+b. `r txt2` decidiu sobre la seva homoscedasticitat. Amb una precisió mínima de 3 decimals, doneu el valor p associat al contrast realitzat.
+c. Decidiu si les mesures `r scenario$measure` i `r scenario$measure_interact` interaccionen en explicar la variació relativa de casos. Amb una precisió mínima de 3 decimals, doneu el valor p associat al contrast realitzat.
+d. Utilitzant el mètode de selecció automàtica vist a la cinquena pràctica, busqueu el millor model començant amb el model que contingui totes les variables de contingència (iniciades amb C) i la interacció de la pregunta anterior (sigui significativa o no). Amb una precisió mínima de 3 decimals, doneu el coeficient de determinació del model obtingut.
+e. Al llarg de la setmana anterior s'han acumulat `r scenario$nprev` casos. Actualment s'estan aplicant les mesures `r sprintf("%s = %d", scenario$measure, scenario$measure_v1)` i `r sprintf("%s = %d", scenario$measure_interact, scenario$measure_v2)`. Utilitzant el model que només conté la variable `r scenario$measure` i `r scenario$measure_interact` (sense interaccions). Calculeu l'interval del 95% de confiança  del nombre de casos mitjans diaris que apareixeran durant la següent setmana. Doneu el límit inferior d'aquest interval.
+
+## Respostes
+
+a. Necessitem veure si el valor mitjà de la variable `y` depen de les mesures de contingència de C1. Realitzarem un contrast ANOVA.
+
+```{r}
+anova(m <-lm(y~C1, data=data))
+# summary(aov(y~C1, data=data))
+```
+
+b. Si assumim que no hi ha normalitat, aleshores haurem de treballar amb el contrast de Breusch-Pagan:
+
+```{r}
+lmtest::bptest(m)
+```
+
+En cas d'assumir normalitat, hauríem de treballar amb el test de Bartlett vist a la pràctica 4:
+
+```{r}
+bartlett.test(y~C1, data=data)
+```
+
+c. Per veure si la interacció és significativa, mirarem si tenim evidències per considerar diferents els següents models:
+
+```{r}
+m0 = lm(y~C1+C3, data = data)
+m1 = lm(y~C1+C3+C1:C3, data = data)
+```
+
+Ho podem fer amb un contrast anova:
+
+```{r}
+anova(m0, m1)
+```
+
+d.
+
+```{r}
+m_ini = lm(y~C1+C2+C3+C4+C5+C6+C7+C8+C1:C3, data=data)
+m_sw = step(m_ini)
+summary(m_sw)
+```
+
+e. Amb la funció `predict()` podem calcular l'interval de confiança.
+
+```{r}
+dpred = tibble(C1 = '2', C3 = '2')
+y_conf = predict(m0, dpred, interval = 'confidence')
+y_conf
+```
+
+Per extreure els casos futurs, necessitem utilitzar els casos passat per aïllar el que en interessa:
+
+```{r}
+(200000/7) * exp(y_conf)
+```
+
+D'on treiem 27047,57.
+
+

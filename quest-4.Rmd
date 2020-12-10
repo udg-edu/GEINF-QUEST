@@ -1,6 +1,8 @@
 ---
 title: "Qüestionari 4"
-output: html_document
+output: 
+  html_document: 
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -8,10 +10,8 @@ set.seed(1)
 library(tidyverse)
 library(lubridate)
 library(stringr)
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse=TRUE, comment = "# >", warning = FALSE)
 ```
-
-# Pregunta 1
 
 A internet trobareu molta informació relacionada amb la COVID-19. Al qüestionari 2 vau treballar amb el conjunt de dades que estava disponible a la web d'Our World in Data. En aquest qüestionari afegireu informació sobre les accions que s'estan duent a terme diferents governs. Utilitzareu la taula __Coronavirus Government Response Tracker__ que manté la Universitat d'Oxford, a través del repositori [https://github.com/OxCGRT](https://github.com/OxCGRT).
 
@@ -230,4 +230,97 @@ a. `r q2`
 a. `r q3`
 a. `r q4`
 a. `r q5`
+
+## Respostes
+
+a. Primerament filtrarem els països d'Europa a les setmanes indicades, i traballarem amb la mesura C2 associada al tancament de locals amb valor 2 (require closing, or work from home, for some sectors or categories of workers)
+
+```{r}
+data %>%
+  filter(continent == 'Europe', week %in% c(15,29,34)) %>%
+  mutate(c2_2 = as.integer(c2 == 2)) %>%
+  select(week, c2_2) %>%
+  with(prop.test(table(week, c2_2), correct = FALSE)) # També valdria el contrast chisq.test()
+```
+
+b. 
+
+```{r}
+data %>%
+  filter(country %in% c('Spain', 'Portugal'), week %in% 30:39) %>%
+  select(week, country, deaths) %>%
+  pivot_wider(names_from = country, values_from = deaths, names_repair = ~c('weeks', 'x1', 'x2')) %>%
+  with(t.test(x1,x2,paired = TRUE))
+```
+
+c.
+
+```{r}
+data %>%
+  filter(continent == 'Europe', week %in% c(21,41)) %>%
+  select(country, week, cases) %>%
+  pivot_wider(names_from = week, values_from = cases, names_repair = ~c('country', 'x1', 'x2')) %>% 
+  with(t.test(x1,x2,paired = TRUE))
+```
+
+En alguns casos pot pasar que algun païs no contingui informació per alguna de les dates. Per exemple, si considerem les setmanes 39 i 45 a Africa, alguns països no apareixen en una de les setmanes. Per exemple, Costa d'Ivori i el sur de Sudan no apareixen a la setmana 39 i 45 respectivament:
+
+```{r}
+data %>%
+  filter(continent == 'Africa', week %in% c(39,45)) %>%
+  select(country, week, cases) %>%
+  pivot_wider(names_from = week, values_from = cases, names_repair = ~c('country', 'x1', 'x2')) %>%
+  filter(!complete.cases(.))
+```
+
+Tot i que la solució proposada us donarà la resposta correcte, ja que de manera automàtica la funció `t.test()` elimina els casos amb missing. Depenent de com ho hagiu fet, podeu arribar a resultats incorrectes. Per exemple,
+
+```{r}
+# Païssos d'Àfrica
+af = filter(data,  continent == 'Africa')
+# Setmana 39
+s39 = select(filter(af, week == '39'), country, c39 = cases)
+# Setmana 45
+s45 = select(filter(af, week == '45'), country, c45 = cases)
+```
+
+Per combinar les dues setmanes, necessitem fer-ho tenint en compte els noms dels països. Això ho podem fer amb un join (per exemple `inner_join()`):
+
+```{r}
+s_comparison = inner_join(s39, s45, by = 'country')
+t.test(s_comparison$c39, s_comparison$c45, paired = TRUE)
+```
+
+d. Primer preparem les dades.
+
+```{r}
+d4 = data %>%
+  filter(continent %in% c('Asia', 'Africa'), week == 17) %>%
+  select(continent, deaths)
+```
+
+Aleshores mirem si podem assumir variàncies iguals:
+
+```{r}
+bartlett.test(deaths~continent, data = d4)
+```
+
+Com que no podem, ho específiquem en fer la comparació de mitjanes per mostres independents.
+
+```{r}
+t.test(deaths~continent, data = d4, var.equal = FALSE)
+```
+
+e. Necessitem fer un test d'indepencidència o de comparació de proporcions a la següent taula:
+ 
+```{r}
+tab = with(filter(data, week == 24), table(c2, continent == 'Europe'))
+tab
+```
+
+```{r}
+prop.test(tab, correct = FALSE)
+# També
+# chisq.test(tab, correct = FALSE)
+```
 

@@ -6,7 +6,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, collapse=TRUE, comment = "# >", warning = FALSE)
 library(tidyverse)
 library(nycflights13)
 library(lubridate)
@@ -283,10 +283,81 @@ Finalment, caldrà que __filtreu la taula amb les observacions d'aquest any 2020
 Per a totes les preguntes del qüestionari, ompliu els espais amb la resposta adequada.
 
 
-* Quantes observacions té la taula importada després de filtrar les observacions de l'any 2020?
-* Quin és el número de mes amb més `r variable_[[1]]` (utilitza la variable ``r names(variable_)`) a `r country_[[1]]` ("`r names(country_)`")?
-* Estem interessats a estudiar la relació entre els nous testos i els nous casos. A quin dels següents païssos pertany el següent gràfic: `r paste(sample(names(countries[1:5])), collapse=', ')` <br>
+a. Quantes observacions té la taula importada després de filtrar les observacions de l'any 2020?
+b. Quin és el número de mes amb més `r variable_[[1]]` (utilitza la variable ``r names(variable_)`) a `r country_[[1]]` ("`r names(country_)`")?
+c. Estem interessats a estudiar la relació entre els nous testos i els nous casos. A quin dels següents païssos pertany el següent gràfic: `r paste(sample(names(countries[1:5])), collapse=', ')` <br>
 
 ```{r, echo=FALSE}
 with(D, plot(new_tests, new_cases))
 ```
+
+## Resposta
+
+```{r, include=FALSE}
+url_covid = "https://raw.githubusercontent.com/owid/covid-19-data/46848f81eee15ba0d64c47e3f10eb8fbaf40bb27/public/data/owid-covid-data.csv"
+covid = read_csv(url_covid, 
+                 col_types = cols(
+                   .default = col_double(),
+                   iso_code = col_character(),
+                   continent = col_character(),
+                   location = col_character(),
+                   date = col_date(format = ""),
+                   tests_units = col_character()))
+url_covid = "https://raw.githubusercontent.com/owid/covid-19-data/46848f81eee15ba0d64c47e3f10eb8fbaf40bb27/public/data/owid-covid-data.csv"
+data = covid %>%
+  mutate(year = year(date),
+         month = month(date)) %>%
+  filter(year == 2020)
+```
+
+Primerament descarreguem i carreguem les dades demanades:
+
+```{r, eval=FALSE}
+commit = "46848f81eee15ba0d64c47e3f10eb8fbaf40bb27"
+fname = "owid-covid-data.csv"
+url_covid = sprintf("https://raw.githubusercontent.com/owid/covid-19-data/%s/public/data/%s",
+                    commit, fname)
+covid = read_csv(url_covid, 
+                 col_types = cols(
+                   .default = col_double(),
+                   iso_code = col_character(),
+                   continent = col_character(),
+                   location = col_character(),
+                   date = col_date(format = ""),
+                   tests_units = col_character()))
+
+data = covid %>%
+  mutate(year = year(date),
+         month = month(date)) %>%
+  filter(year == 2020)
+```
+
+a. 
+
+```{r}
+nrow(data)
+```
+
+b. Primer filtrem les observacions de `LOCATION` i comptem el nombre de casos i finalment ordenem:
+
+```{r}
+LOCATION = "Greece"
+data %>%
+  filter(location == LOCATION) %>%
+  group_by(month) %>%
+  summarise(
+    total = sum(new_tests, na.rm=TRUE) # new_cases, new_tests, new_deaths
+  ) %>%
+  arrange(desc(total))
+```
+
+c. Veient els gràfics veiem que el gràfic es va fer utilitzant Portugal.
+
+```{r, out.width="33%", fig.show='hold'}
+with(filter(data, location == 'Austria'), plot(new_tests, new_cases))
+with(filter(data, location == 'France'), plot(new_tests, new_cases))
+with(filter(data, location == 'Portugal'), plot(new_tests, new_cases))
+with(filter(data, location == 'Belgium'), plot(new_tests, new_cases))
+with(filter(data, location == 'Greece'), plot(new_tests, new_cases))
+```
+
