@@ -104,14 +104,10 @@ Utilitzant sempre el __test amb més potència estadística__, responeu les seg�
 
 ```{r, include=FALSE}
 if(scenario$anova_homoscedasticity_groups > 0.01){
-  res2 = scenario$anova_homoscedasticity_groups
   txt2 = "Assumint normalitat de la variació relativa dins dels grups de la pregunta anterior, "
 }else{
-  res2 = scenario$anova_homoscedasticity
   txt2 = "Assumint que __no__ hi ha normalitat de la variació relativa dins dels grups de la pregunta anterior, "
 }
-
-# res4 = 1 - sum(residuals(scenario$sw_lr_mod[[1]])^2) / (var(scenario$data[[1]]$y) * (scenario$n_rows - 1))
 ```
 
 a. Creieu que tenim evidències per dir que la variació relativa de casos depèn de la mesura de contingència `r scenario$measure`? Amb una precisió mínima de 3 decimals, doneu el valor p associat al contrast realitzat.

@@ -22,13 +22,6 @@ lim = sample(x = rep(n_lim, 2), size = 1)
 direction = sample(c('més', 'menys'), 1)
 
 l_diaria = sample(c(5,10,20), 1)
- 
-RES1 = ifelse(direction == "més", 1 - pbinom(lim, size, Prob_I), pbinom(lim-1, size, Prob_I))
-RES2 = qpois(0.5, 10*l_diaria/10000 * size)
-Prob_P_I = 0.8
-Prob_P_S = 1 - 0.85
-Prob_I_P = Prob_I * Prob_P_I / (Prob_I * Prob_P_I + (1-Prob_I) * Prob_P_S)
-RES3 = 1 - pbinom(5, 10, Prob_I_P)
 ```
 
 Un cert virus està afectant una localitat A de `r size` habitants. S'estima que la prevalença a la població, gent afectada pel virus, és d'un `r Prob_I * 100`%. 
