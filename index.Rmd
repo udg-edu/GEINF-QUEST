@@ -1,0 +1,10 @@
+---
+title: "Solucions qüestionaris"
+output: html_document
+---
+
+
+```{r, results='asis', echo=FALSE}
+cat(sprintf("* [Proposta de solució al qüestionari %d](quest-%d.html)", 2:5, 2:5), sep = "\n")
+```
+
